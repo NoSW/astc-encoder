@@ -1,0 +1,24 @@
+name: test-runner
+run-name: Test On-Demand Runner
+
+on:
+  push:
+
+jobs:
+  SH-test-ubuntu:
+    name: Build and test on Ubuntu
+    runs-on: [self-hosted-ubuntu-latest-x64]
+    steps:
+      - name: One
+        run: |
+          hostname
+          uname -a
+
+      - name: Coverity
+        run: |
+          export PATH=$PATH:/usr/local/cov-analysis/bin
+          cov-analyse --info
+
+      - name: Code Sign
+        run: |
+          cs-client -v
