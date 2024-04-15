@@ -381,6 +381,7 @@ struct decimation_info
 	 */
 	uint8_t texel_weight_contribs_int_tr[4][BLOCK_MAX_TEXELS];
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	/**
 	 * @brief The bilinear contribution of the N weights that are interpolated for each texel.
 	 * Value is between 0 and 1, stored transposed to improve vectorization.
@@ -407,6 +408,7 @@ struct decimation_info
 	 * Value is between 0 and 1, stored transposed to improve vectorization.
 	 */
 	float texel_contrib_for_weight[BLOCK_MAX_TEXELS][BLOCK_MAX_WEIGHTS];
+#endif
 };
 
 /**
@@ -508,6 +510,15 @@ struct decimation_mode
 	}
 };
 
+#ifdef ASTCENC_DECOMPRESS_ONLY
+struct block_size_descriptor;
+bool generate_one_partition_info_entry(
+	const block_size_descriptor& bsd,
+	unsigned int partition_count,
+	unsigned int partition_index,
+	partition_info& pi);
+#endif
+
 /**
  * @brief Data tables for a single block size.
  *
@@ -570,6 +581,8 @@ struct block_size_descriptor
 	/** @brief The number of stored block modes for any encoding. */
 	unsigned int block_mode_count_all;
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
+
 	/** @brief The number of selected partitionings for 1/2/3/4 partitionings. */
 	unsigned int partitioning_count_selected[BLOCK_MAX_PARTITIONS];
 
@@ -578,6 +591,7 @@ struct block_size_descriptor
 
 	/** @brief The active decimation modes, stored in low indices. */
 	decimation_mode decimation_modes[WEIGHTS_MAX_DECIMATION_MODES];
+#endif
 
 	/** @brief The active decimation tables, stored in low indices. */
 	ASTCENC_ALIGNAS decimation_info decimation_tables[WEIGHTS_MAX_DECIMATION_MODES];
@@ -588,6 +602,7 @@ struct block_size_descriptor
 	/** @brief The active block modes, stored in low indices. */
 	block_mode block_modes[WEIGHTS_MAX_BLOCK_MODES];
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	/** @brief The active partition tables, stored in low indices per-count. */
 	partition_info partitionings[(3 * BLOCK_MAX_PARTITIONINGS) + 1];
 
@@ -621,7 +636,9 @@ struct block_size_descriptor
 	 * Indexed by remapped index, not physical index.
 	 */
 	uint64_t coverage_bitmaps_4[BLOCK_MAX_PARTITIONINGS][4];
-
+#else
+	partition_info partitioning0;
+#endif
 	/**
 	 * @brief Get the block mode structure for index @c block_mode.
 	 *
@@ -640,6 +657,7 @@ struct block_size_descriptor
 		return this->block_modes[packed_index];
 	}
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	/**
 	 * @brief Get the decimation mode structure for index @c decimation_mode.
 	 *
@@ -655,6 +673,7 @@ struct block_size_descriptor
 	{
 		return this->decimation_modes[decimation_mode];
 	}
+#endif
 
 	/**
 	 * @brief Get the decimation info structure for index @c decimation_mode.
@@ -672,6 +691,7 @@ struct block_size_descriptor
 		return this->decimation_tables[decimation_mode];
 	}
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	/**
 	 * @brief Get the partition info table for a given partition count.
 	 *
@@ -725,6 +745,18 @@ struct block_size_descriptor
 		auto& result = get_partition_table(partition_count)[packed_index];
 		return result;
 	}
+
+#else
+	const void generate_partition_info(unsigned int partition_count, unsigned int index, partition_info& pi) const
+	{
+		if (partition_count == 1)
+		{
+			memcpy(&pi, &partitioning0, sizeof(partition_info));
+			return;
+		}
+		generate_one_partition_info_entry(*this, partition_count, index, pi);
+	}
+#endif
 };
 
 /**
@@ -1267,6 +1299,7 @@ void init_block_size_descriptor(
 	float mode_cutoff,
 	block_size_descriptor& bsd);
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 /**
  * @brief Populate the partition tables for the target block size.
  *
@@ -1281,6 +1314,7 @@ void init_partition_tables(
 	block_size_descriptor& bsd,
 	bool can_omit_partitionings,
 	unsigned int partition_count_cutoff);
+#endif
 
 /**
  * @brief Get the percentile table for 2D block modes.

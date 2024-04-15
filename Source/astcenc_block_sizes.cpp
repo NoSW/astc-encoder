@@ -331,7 +331,9 @@ static void init_decimation_info_2d(
 		for (unsigned int j = 0; j < wb.weight_count_of_texel[i]; j++)
 		{
 			di.texel_weight_contribs_int_tr[j][i] = wb.weights_of_texel[i][j];
+		#ifndef ASTCENC_DECOMPRESS_ONLY
 			di.texel_weight_contribs_float_tr[j][i] = static_cast<float>(wb.weights_of_texel[i][j]) * (1.0f / WEIGHTS_TEXEL_SUM);
+		#endif
 			di.texel_weights_tr[j][i] = wb.grid_weights_of_texel[i][j];
 		}
 
@@ -339,13 +341,16 @@ static void init_decimation_info_2d(
 		for (unsigned int j = wb.weight_count_of_texel[i]; j < 4; j++)
 		{
 			di.texel_weight_contribs_int_tr[j][i] = 0;
+		#ifndef ASTCENC_DECOMPRESS_ONLY
 			di.texel_weight_contribs_float_tr[j][i] = 0.0f;
+		#endif
 			di.texel_weights_tr[j][i] = 0;
 		}
 	}
 
 	di.max_texel_weight_count = max_texel_weight_count;
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	for (unsigned int i = 0; i < weights_per_block; i++)
 	{
 		unsigned int texel_count_wt = wb.texel_count_of_weight[i];
@@ -382,6 +387,7 @@ static void init_decimation_info_2d(
 			di.weights_texel_contribs_tr[j][i] = 0.0f;
 		}
 	}
+#endif
 
 	// Initialize array tail so we can over-fetch with SIMD later to avoid loop tails
 	unsigned int texels_per_block_simd = round_up_to_simd_multiple_vla(texels_per_block);
@@ -391,12 +397,15 @@ static void init_decimation_info_2d(
 
 		for (unsigned int j = 0; j < 4; j++)
 		{
+		#ifndef ASTCENC_DECOMPRESS_ONLY
 			di.texel_weight_contribs_float_tr[j][i] = 0;
+		#endif
 			di.texel_weights_tr[j][i] = 0;
 			di.texel_weight_contribs_int_tr[j][i] = 0;
 		}
 	}
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	// Initialize array tail so we can over-fetch with SIMD later to avoid loop tails
 	// Match last texel in active lane in SIMD group, for better gathers
 	unsigned int last_texel_count_wt = wb.texel_count_of_weight[weights_per_block - 1];
@@ -413,6 +422,7 @@ static void init_decimation_info_2d(
 			di.weights_texel_contribs_tr[j][i] = 0.0f;
 		}
 	}
+#endif
 
 	di.texel_count = static_cast<uint8_t>(texels_per_block);
 	di.weight_count = static_cast<uint8_t>(weights_per_block);
@@ -588,20 +598,25 @@ static void init_decimation_info_3d(
 		for (unsigned int j = 0; j < 4; j++)
 		{
 			di.texel_weight_contribs_int_tr[j][i] = 0;
+		#ifndef ASTCENC_DECOMPRESS_ONLY
 			di.texel_weight_contribs_float_tr[j][i] = 0.0f;
+		#endif
 			di.texel_weights_tr[j][i] = 0;
 		}
 
 		for (unsigned int j = 0; j < wb.weight_count_of_texel[i]; j++)
 		{
 			di.texel_weight_contribs_int_tr[j][i] = wb.weights_of_texel[i][j];
+		#ifndef ASTCENC_DECOMPRESS_ONLY
 			di.texel_weight_contribs_float_tr[j][i] = static_cast<float>(wb.weights_of_texel[i][j]) * (1.0f / WEIGHTS_TEXEL_SUM);
+		#endif
 			di.texel_weights_tr[j][i] = wb.grid_weights_of_texel[i][j];
 		}
 	}
 
 	di.max_texel_weight_count = max_texel_weight_count;
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	for (unsigned int i = 0; i < weights_per_block; i++)
 	{
 		unsigned int texel_count_wt = wb.texel_count_of_weight[i];
@@ -638,6 +653,7 @@ static void init_decimation_info_3d(
 			di.weights_texel_contribs_tr[j][i] = 0.0f;
 		}
 	}
+#endif
 
 	// Initialize array tail so we can over-fetch with SIMD later to avoid loop tails
 	unsigned int texels_per_block_simd = round_up_to_simd_multiple_vla(texels_per_block);
@@ -647,12 +663,15 @@ static void init_decimation_info_3d(
 
 		for (unsigned int j = 0; j < 4; j++)
 		{
+		#ifndef ASTCENC_DECOMPRESS_ONLY
 			di.texel_weight_contribs_float_tr[j][i] = 0;
+		#endif
 			di.texel_weights_tr[j][i] = 0;
 			di.texel_weight_contribs_int_tr[j][i] = 0;
 		}
 	}
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	// Initialize array tail so we can over-fetch with SIMD later to avoid loop tails
 	// Match last texel in active lane in SIMD group, for better gathers
 	int last_texel_count_wt = wb.texel_count_of_weight[weights_per_block - 1];
@@ -669,6 +688,7 @@ static void init_decimation_info_3d(
 			di.weights_texel_contribs_tr[j][i] = 0.0f;
 		}
 	}
+#endif
 
 	di.texel_count = static_cast<uint8_t>(texels_per_block);
 	di.weight_count = static_cast<uint8_t>(weights_per_block);
@@ -677,6 +697,7 @@ static void init_decimation_info_3d(
 	di.weight_z = static_cast<uint8_t>(z_weights);
 }
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 /**
  * @brief Assign the texels to use for kmeans clustering.
  *
@@ -723,6 +744,7 @@ static void assign_kmeans_texels(
 		}
 	}
 }
+#endif
 
 /**
  * @brief Allocate a single 2D decimation table entry.
@@ -774,10 +796,12 @@ static void construct_dt_entry_2d(
 
 	// At least one of the two should be valid ...
 	assert(maxprec_1plane >= 0 || maxprec_2planes >= 0);
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	bsd.decimation_modes[index].maxprec_1plane = static_cast<int8_t>(maxprec_1plane);
 	bsd.decimation_modes[index].maxprec_2planes = static_cast<int8_t>(maxprec_2planes);
 	bsd.decimation_modes[index].refprec_1plane = 0;
 	bsd.decimation_modes[index].refprec_2planes = 0;
+#endif
 }
 
 /**
@@ -930,6 +954,7 @@ static void construct_block_size_descriptor_2d(
 			bm.weight_bits = static_cast<uint8_t>(weight_bits);
 			bm.mode_index = static_cast<uint16_t>(i);
 
+		#ifndef ASTCENC_DECOMPRESS_ONLY
 			auto& dm = bsd.decimation_modes[decimation_mode];
 
 			if (is_dual_plane)
@@ -940,6 +965,7 @@ static void construct_block_size_descriptor_2d(
 			{
 				dm.set_ref_1plane(bm.get_weight_quant_mode());
 			}
+		#endif
 
 			bsd.block_mode_packed_index[i] = static_cast<uint16_t>(packed_bm_idx);
 
@@ -964,6 +990,7 @@ static void construct_block_size_descriptor_2d(
 	delete[] percentiles;
 #endif
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	// Ensure the end of the array contains valid data (should never get read)
 	for (unsigned int i = bsd.decimation_mode_count_all; i < WEIGHTS_MAX_DECIMATION_MODES; i++)
 	{
@@ -975,6 +1002,7 @@ static void construct_block_size_descriptor_2d(
 
 	// Determine the texels to use for kmeans clustering.
 	assign_kmeans_texels(bsd);
+#endif
 
 	delete wb;
 }
@@ -1053,15 +1081,18 @@ static void construct_block_size_descriptor_3d(
 					maxprec_2planes = -1;
 				}
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 				bsd.decimation_modes[decimation_mode_count].maxprec_1plane = static_cast<int8_t>(maxprec_1plane);
 				bsd.decimation_modes[decimation_mode_count].maxprec_2planes = static_cast<int8_t>(maxprec_2planes);
 				bsd.decimation_modes[decimation_mode_count].refprec_1plane = maxprec_1plane == -1 ? 0 : 0xFFFF;
 				bsd.decimation_modes[decimation_mode_count].refprec_2planes = maxprec_2planes == -1 ? 0 : 0xFFFF;
+#endif
 				decimation_mode_count++;
 			}
 		}
 	}
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	// Ensure the end of the array contains valid data (should never get read)
 	for (unsigned int i = decimation_mode_count; i < WEIGHTS_MAX_DECIMATION_MODES; i++)
 	{
@@ -1070,6 +1101,7 @@ static void construct_block_size_descriptor_3d(
 		bsd.decimation_modes[i].refprec_1plane = 0;
 		bsd.decimation_modes[i].refprec_2planes = 0;
 	}
+#endif
 
 	bsd.decimation_mode_count_always = 0; // Skipped for 3D modes
 	bsd.decimation_mode_count_selected = decimation_mode_count;
@@ -1155,8 +1187,10 @@ static void construct_block_size_descriptor_3d(
 	bsd.block_mode_count_1plane_2plane_selected = bm_counts[0] + bm_counts[1];
 	bsd.block_mode_count_all = bm_counts[0] + bm_counts[1];
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	// Determine the texels to use for kmeans clustering.
 	assign_kmeans_texels(bsd);
+#endif
 
 	delete wb;
 }
@@ -1180,5 +1214,10 @@ void init_block_size_descriptor(
 		construct_block_size_descriptor_2d(x_texels, y_texels, can_omit_modes, mode_cutoff, bsd);
 	}
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	init_partition_tables(bsd, can_omit_modes, partition_count_cutoff);
+#else
+	(void)(partition_count_cutoff);
+	generate_one_partition_info_entry(bsd, 1, 0, bsd.partitioning0);
+#endif
 }

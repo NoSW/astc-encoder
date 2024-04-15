@@ -24,6 +24,9 @@
 /** @brief The number of 64-bit words needed to represent a canonical partition bit pattern. */
 #define BIT_PATTERN_WORDS (((ASTCENC_BLOCK_MAX_TEXELS * 2) + 63) / 64)
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
+
+
 /**
  * @brief Generate a canonical representation of a partition pattern.
  *
@@ -103,6 +106,8 @@ static bool compare_canonical_partitionings(
 #endif
 	    ;
 }
+
+#endif // !ASTCENC_DECOMPRESS_ONLY
 
 /**
  * @brief Hash function used for procedural partition assignment.
@@ -261,6 +266,82 @@ static uint8_t select_partition(
 
 	return partition;
 }
+
+#ifdef ASTCENC_DECOMPRESS_ONLY
+bool generate_one_partition_info_entry(
+	const block_size_descriptor& bsd,
+	unsigned int partition_count,
+	unsigned int partition_index,
+	partition_info& pi)
+{
+	int texels_per_block = bsd.texel_count;
+	bool small_block = texels_per_block < 32;
+
+	uint8_t *partition_of_texel = pi.partition_of_texel;
+
+	// Assign texels to partitions
+	int texel_idx = 0;
+	int counts[BLOCK_MAX_PARTITIONS] { 0 };
+	for (unsigned int z = 0; z < bsd.zdim; z++)
+	{
+		for (unsigned int y = 0; y <  bsd.ydim; y++)
+		{
+			for (unsigned int x = 0; x <  bsd.xdim; x++)
+			{
+				uint8_t part = select_partition(partition_index, x, y, z, partition_count, small_block);
+				pi.texels_of_partition[part][counts[part]++] = static_cast<uint8_t>(texel_idx++);
+				*partition_of_texel++ = part;
+			}
+		}
+	}
+
+	// Fill loop tail so we can overfetch later
+	for (unsigned int i = 0; i < partition_count; i++)
+	{
+		int ptex_count = counts[i];
+		int ptex_count_simd = round_up_to_simd_multiple_vla(ptex_count);
+		for (int j = ptex_count; j < ptex_count_simd; j++)
+		{
+			pi.texels_of_partition[i][j] = pi.texels_of_partition[i][ptex_count - 1];
+		}
+	}
+
+	// Populate the actual procedural partition count
+	if (counts[0] == 0)
+	{
+		pi.partition_count = 0;
+	}
+	else if (counts[1] == 0)
+	{
+		pi.partition_count = 1;
+	}
+	else if (counts[2] == 0)
+	{
+		pi.partition_count = 2;
+	}
+	else if (counts[3] == 0)
+	{
+		pi.partition_count = 3;
+	}
+	else
+	{
+		pi.partition_count = 4;
+	}
+
+	// Populate the partition index
+	pi.partition_index = static_cast<uint16_t>(partition_index);
+
+	for (unsigned int i = 0; i < BLOCK_MAX_PARTITIONS; i++)
+	{
+		pi.partition_texel_count[i] = static_cast<uint8_t>(counts[i]);
+	}
+
+	// Valid partitionings have texels in all of the requested partitions
+	bool valid = pi.partition_count == partition_count;
+	return valid;
+}
+
+#else
 
 /**
  * @brief Generate a single partition info structure.
@@ -479,3 +560,4 @@ void init_partition_tables(
 
 	delete[] canonical_patterns;
 }
+#endif

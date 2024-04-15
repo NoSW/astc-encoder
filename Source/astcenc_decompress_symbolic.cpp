@@ -267,7 +267,13 @@ void decompress_symbolic_block(
 
 	// Get the appropriate partition-table entry
 	int partition_count = scb.partition_count;
+
+#ifndef ASTCENC_DECOMPRESS_ONLY
 	const auto& pi = bsd.get_partition_info(partition_count, scb.partition_index);
+#else
+	partition_info pi;
+	bsd.generate_partition_info(partition_count, scb.partition_index, pi);
+#endif
 
 	// Get the appropriate block descriptors
 	const auto& bm = bsd.get_block_mode(scb.block_mode);
