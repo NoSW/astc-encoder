@@ -68,6 +68,54 @@
 	#define ASTCENC_BLOCK_MAX_TEXELS 216 // A 3D 6x6x6 block
 #endif
 
+inline constexpr unsigned int GET_MAX_DECIMATION_MODES()
+{
+	// switch (ASTCENC_BLOCK_MAX_TEXELS)
+	// {
+	// case 16: return 9;  // 4x4x1
+	// case 20: return 12; // 5x4x1
+	// case 25: return 16; // 5x5x1
+	// case 30: return 20; // 6x5x1
+	// case 36: return 25; // 6x6x1
+	// case 40: return 28; // 8x5x1
+	// case 48: return 35; // 8x6x1
+	// case 50: return 36; // 10x5x1
+	// case 60: return 45; // 10x6x1
+	// case 64: return 49; // 8x8x1
+	// case 80: return 60; // 10x8x1
+	// case 100: return 71; // 10x10x1
+	// case 120: return 79; // 12x10x1
+	// case 144: return 87; // 12x12x1
+	// case 27: return 8;  // 3x3x3
+	// case 36: return 12; // 4x3x3
+	// case 48: return 18; // 4x4x3
+	// case 64: return 27; // 4x4x4
+	// case 80: return 35; // 5x4x4
+	// case 100: return 44; // 5x5x4
+	// case 125: return 54; // 5x5x5
+	// case 150: return 62; // 6x5x5
+	// case 180: return 70; // 6x6x5
+	// case 216: return 78; // 6x6x6
+	// default: return 87;
+	// }
+
+	if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 144) return 87;
+	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 120) return 79;
+	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 100) return 71;
+	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 80) return 60;
+	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 64) return 49;
+	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 60) return 45;
+	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 48) return 35;
+	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 40) return 28;
+	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 36) return 25;
+	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 30) return 20;
+	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 25) return 16;
+	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 20) return 12;
+	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 16) return 9;
+	else return 0;
+	static_assert(ASTCENC_BLOCK_MAX_TEXELS >= 16);
+}
+
 /** @brief The maximum number of texels a block can support (6x6x6 block). */
 static constexpr unsigned int BLOCK_MAX_TEXELS { ASTCENC_BLOCK_MAX_TEXELS };
 
@@ -114,7 +162,7 @@ static constexpr float WEIGHTS_TEXEL_SUM { 16.0f };
 static constexpr unsigned int WEIGHTS_MAX_BLOCK_MODES { 2048 };
 
 /** @brief The number of weight grid decimation modes supported by the ASTC format. */
-static constexpr unsigned int WEIGHTS_MAX_DECIMATION_MODES { 87 };
+static constexpr unsigned int WEIGHTS_MAX_DECIMATION_MODES { GET_MAX_DECIMATION_MODES() };
 
 /** @brief The high default error used to initialize error trackers. */
 static constexpr float ERROR_CALC_DEFAULT { 1e30f };
