@@ -1,3 +1,9 @@
+# Fork to optimize decompressor memory footprint
+
+The branch `opt-mem` is
+- created based on tag [4.7.0](https://github.com/ARM-software/astc-encoder/tree/4.7.0)
+- kicked off by https://github.com/ARM-software/astc-encoder/issues/461
+
 # About
 
 The Arm® Adaptive Scalable Texture Compression (ASTC) Encoder, `astcenc`, is
