@@ -68,54 +68,6 @@
 	#define ASTCENC_BLOCK_MAX_TEXELS 216 // A 3D 6x6x6 block
 #endif
 
-inline constexpr unsigned int GET_MAX_DECIMATION_MODES()
-{
-	// switch (ASTCENC_BLOCK_MAX_TEXELS)
-	// {
-	// case 16: return 9;  // 4x4x1
-	// case 20: return 12; // 5x4x1
-	// case 25: return 16; // 5x5x1
-	// case 30: return 20; // 6x5x1
-	// case 36: return 25; // 6x6x1
-	// case 40: return 28; // 8x5x1
-	// case 48: return 35; // 8x6x1
-	// case 50: return 36; // 10x5x1
-	// case 60: return 45; // 10x6x1
-	// case 64: return 49; // 8x8x1
-	// case 80: return 60; // 10x8x1
-	// case 100: return 71; // 10x10x1
-	// case 120: return 79; // 12x10x1
-	// case 144: return 87; // 12x12x1
-	// case 27: return 8;  // 3x3x3
-	// case 36: return 12; // 4x3x3
-	// case 48: return 18; // 4x4x3
-	// case 64: return 27; // 4x4x4
-	// case 80: return 35; // 5x4x4
-	// case 100: return 44; // 5x5x4
-	// case 125: return 54; // 5x5x5
-	// case 150: return 62; // 6x5x5
-	// case 180: return 70; // 6x6x5
-	// case 216: return 78; // 6x6x6
-	// default: return 87;
-	// }
-
-	if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 144) return 87;
-	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 120) return 79;
-	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 100) return 71;
-	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 80) return 60;
-	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 64) return 49;
-	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 60) return 45;
-	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 48) return 35;
-	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 40) return 28;
-	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 36) return 25;
-	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 30) return 20;
-	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 25) return 16;
-	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 20) return 12;
-	else if constexpr (ASTCENC_BLOCK_MAX_TEXELS >= 16) return 9;
-	else return 0;
-	static_assert(ASTCENC_BLOCK_MAX_TEXELS >= 16);
-}
-
 /** @brief The maximum number of texels a block can support (6x6x6 block). */
 static constexpr unsigned int BLOCK_MAX_TEXELS { ASTCENC_BLOCK_MAX_TEXELS };
 
@@ -162,7 +114,7 @@ static constexpr float WEIGHTS_TEXEL_SUM { 16.0f };
 static constexpr unsigned int WEIGHTS_MAX_BLOCK_MODES { 2048 };
 
 /** @brief The number of weight grid decimation modes supported by the ASTC format. */
-static constexpr unsigned int WEIGHTS_MAX_DECIMATION_MODES { GET_MAX_DECIMATION_MODES() };
+static constexpr unsigned int WEIGHTS_MAX_DECIMATION_MODES { 87 };
 
 /** @brief The high default error used to initialize error trackers. */
 static constexpr float ERROR_CALC_DEFAULT { 1e30f };
@@ -411,6 +363,8 @@ struct decimation_info
 	/** @brief The number of stored weights in the Z dimension. */
 	uint8_t weight_z;
 
+#ifndef ASTCENC_DECOMPRESS_ONLY
+
 	/**
 	 * @brief The number of weights that contribute to each texel.
 	 * Value is between 1 and 4.
@@ -429,7 +383,6 @@ struct decimation_info
 	 */
 	uint8_t texel_weight_contribs_int_tr[4][BLOCK_MAX_TEXELS];
 
-#ifndef ASTCENC_DECOMPRESS_ONLY
 	/**
 	 * @brief The bilinear contribution of the N weights that are interpolated for each texel.
 	 * Value is between 0 and 1, stored transposed to improve vectorization.
@@ -456,6 +409,29 @@ struct decimation_info
 	 * Value is between 0 and 1, stored transposed to improve vectorization.
 	 */
 	float texel_contrib_for_weight[BLOCK_MAX_TEXELS][BLOCK_MAX_WEIGHTS];
+
+#else
+	uint8_t* texel_weight_count = nullptr;
+	uint8_t* texel_weights_tr[4] = { nullptr, nullptr, nullptr, nullptr };
+	uint8_t* texel_weight_contribs_int_tr[4] = { nullptr, nullptr, nullptr, nullptr };
+	void alloc(uint8_t*& data)
+	{
+		this->texel_count = texel_count;
+		this->texel_weight_count = data;
+		data += texel_count;
+
+		uint8_t* p = new uint8_t[texel_count * 4 * 2];
+		for (int i = 0; i < 4; i++)
+		{
+			texel_weights_tr[i] = data;
+			data += texel_count;
+		}
+		for (int i = 0; i < 4; i++)
+		{
+			texel_weight_contribs_int_tr[i] = data;
+			data += texel_count;
+		}
+	}
 #endif
 };
 
@@ -639,6 +615,19 @@ struct block_size_descriptor
 
 	/** @brief The active decimation modes, stored in low indices. */
 	decimation_mode decimation_modes[WEIGHTS_MAX_DECIMATION_MODES];
+#else
+	void alloc(int texel_count)
+	{
+		uint8_t* data = new uint8_t[WEIGHTS_MAX_DECIMATION_MODES * (texel_count + 2 * 4 * texel_count)];
+		for (int i = 0; i < WEIGHTS_MAX_DECIMATION_MODES; ++i)
+		{
+			decimation_tables.alloc(data);
+		}
+	}
+	void free()
+	{
+		delete[] decimation_tables[0].texel_weight_count;
+	}
 #endif
 
 	/** @brief The active decimation tables, stored in low indices. */

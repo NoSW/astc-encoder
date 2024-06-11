@@ -704,6 +704,9 @@ astcenc_error astcenc_context_alloc(
 		delete ctxo;
 		return ASTCENC_ERR_OUT_OF_MEM;
 	}
+#ifdef ASTCENC_DECOMPRESS_ONLY
+	ctx->bsd->alloc(config.block_x * config.block_y * config.block_z);
+#endif
 
 	bool can_omit_modes = static_cast<bool>(config.flags & ASTCENC_FLG_SELF_DECOMPRESS_ONLY);
 	init_block_size_descriptor(config.block_x, config.block_y, config.block_z,
@@ -732,6 +735,9 @@ astcenc_error astcenc_context_alloc(
 		              "compression_working_buffers size must be multiple of vector alignment");
 		if (!ctx->working_buffers)
 		{
+		#ifdef ASTCENC_DECOMPRESS_ONLY
+			ctx->bsd->free();
+		#endif
 			aligned_free<block_size_descriptor>(ctx->bsd);
 			delete ctxo;
 			*context = nullptr;
@@ -769,6 +775,9 @@ void astcenc_context_free(
 	{
 		astcenc_contexti* ctx = &ctxo->context;
 		aligned_free<compression_working_buffers>(ctx->working_buffers);
+	#ifdef ASTCENC_DECOMPRESS_ONLY
+		ctx->bsd->free();
+	#endif
 		aligned_free<block_size_descriptor>(ctx->bsd);
 #if defined(ASTCENC_DIAGNOSTICS)
 		delete ctx->trace_log;
